@@ -23,8 +23,8 @@ class Index extends React.Component<IndexProps, Partial<IndexState>> {
     render() {
         return (
             <div className="row">
-                <NewRecord />
-                <Records />
+                <NewRecord create_record={this.props.create_record} indexStore={this.props.indexStore} />
+                <Records loadRecords={this.props.loadRecords} indexStore={this.props.indexStore}/>
             </div>
 
         )

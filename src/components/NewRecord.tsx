@@ -1,17 +1,23 @@
 import * as React from "react";
 import {IndexProps} from "../containers/IndexContainer";
 
-
 interface IndexState {
-    showNewAccountModal: Boolean
-    licenseExpired: Boolean
+    inputPayload: String
 }
 
 class NewRecord extends React.Component<IndexProps, Partial<IndexState>> {
 
     constructor(props) {
         super(props);
+        this.state = {
+            inputPayload: ''
+        }
 
+    }
+
+    handleInputString(e) {
+        e.preventDefault()
+        this.setState({inputPayload: e.target.value})
     }
 
     componentWillReceiveProps(nextProp) {
@@ -23,21 +29,29 @@ class NewRecord extends React.Component<IndexProps, Partial<IndexState>> {
         // @ts-ignore
         return (
             <div className="col-lg-6">
-
                 <div className="element-wrapper">
                     <h6 className="element-header">Binary tree expression</h6>
                     <div className="element-box">
                         <form>
-                            {/*<h5 className="form-header">Default Layout</h5>*/}
-                            <div className="form-desc"> Tree expression example, e.g.: ",1,2,3,#,#,4,5,#,#,#,#"
+                            <div className="form-desc">
+                                Tree expression example, e.g.: "1,2,3,#,#,4,5,#,#,#,#"
+                                <ul>
+                                    <li>Each node separate by ,</li>
+                                    <li># represents null node</li>
+
+                                </ul>
                             </div>
+                            <img alt="" src="https://i.imgur.com/vFFI3ri.png"/>
                             <fieldset className="form-group">
                                 <legend><span>Input your tree expression</span></legend>
                                 <div className="row">
                                     <div className="col-sm-12">
                                         <div className="form-group">
                                             <label htmlFor=""> Input tree expression</label>
-                                            <input className="form-control" placeholder="Expression" type="text" />
+                                            <input className="form-control" placeholder="Expression"
+                                                   value={this.state.inputPayload}
+                                                   onChange={e => this.handleInputString(e)}
+                                                   type="text"/>
                                         </div>
                                     </div>
 
@@ -45,15 +59,27 @@ class NewRecord extends React.Component<IndexProps, Partial<IndexState>> {
 
                             </fieldset>
                             <div className="form-buttons-w">
-                                <button className="btn btn-primary" type="submit">Submit</button>
+                                <button className="btn btn-primary"
+                                        onClick={e => {
+                                            e.preventDefault();
+                                            this.props.create_record(this.state.inputPayload)
+                                        }}
+                                        type="submit">Submit
+                                </button>
                             </div>
                         </form>
                     </div>
                 </div>
+                {
+                    this.props.indexStore.errorMessage ?
+                        <div className="alert alert-danger" role="alert">
+                            <strong>{this.props.indexStore.errorMessage} </strong></div>
+                        :
+                        <div/>
+                }
             </div>
-
-    )
+        )
     }
-    }
+}
 
-    export default NewRecord;
+export default NewRecord;

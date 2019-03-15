@@ -3,75 +3,69 @@ import Index from "../components/Index";
 
 import {map, reduce, somethingElse, _} from 'underscore'
 import axios from 'axios';
-import {DataImport} from "../components/DataImport";
 import {SERVER} from "../constants";
-
+import {IIndexReducerProps} from "../reducers/IndexReducer";
 
 const mapStateToProps = (state: any) => state;
 
-interface IAccount {
-    id: string,
-    username: string,
-    password: string,
-    group: string,
-    orgType: string
-}
-
-interface IAccountGroup {
-    name: string
-}
-
-
-export interface IndexProps extends IndexDispatchProps {
-}
-
 export interface IndexDispatchProps {
+    create_record: Function
     loadRecords: Function
 
+}]
+
+export interface IndexProps extends IndexDispatchProps {
+    indexStore: IIndexReducerProps,
 }
 
-
-function handleUpdateLicenseResponse(dispatch, response){
-    if(response.status == 422){
-        dispatch({
-            type: INVALID_LICENSE,
-            payload:  response.data
-        })
-    }else if(response.status == 200){
-        dispatch({
-            type: UPDATE_LICENSE,
-            payload:  response.data
-        })
-    }else{
-        // Do nothing
-    }
-}
 
 const mapDispatchToProps = (dispatch: any, ownProps: any): IndexDispatchProps => {
+    const REST_API_END_POINT = `${SERVER.API_END_POINT}/api/v1/calculation_record`;
     return {
-        loadRecords: () => {
-            axios.get(`${SERVER.HOST}/api/v1/calculation_record`})
-            .then(resp => {
-                debugger
-
+        create_record: (payload:any) => {
+            axios.post(REST_API_END_POINT, {record: {input: payload}}).then(resp => {
+                dispatch({
+                    type: 'create_record',
+                    payload: resp.data
+                })
             }).catch((e) => {
-                if(e.response){
-                }else{
-                    // network error
+
+                try {
+                    if (e.response && e.response.data && e.response.data.input[0]) {
+                        dispatch({
+                            type: 'failed_to_create',
+                            payload: e.response.data.input[0]
+                        })
+                    }
+                } catch (e) {
+                    dispatch({
+                        type: 'failed_to_create',
+                        payload: 'Unknown error.'
+                    })
                 }
 
             })
-            dispatch({
-                type: 'load_records',
-                payload: null
+        },
+        loadRecords: () => {
+            axios.get(REST_API_END_POINT).then(resp => {
+                dispatch({
+                    type: 'load_records',
+                    payload: resp.data
+                })
+            }).catch((e) => {
+                dispatch({
+                    type: 'failed_to_create',
+                    payload: 'Unknown error.'
+                })
             })
+
         }
     }
 }
 
-const IndexContainer=connect(
-        mapStateToProps,
-        mapDispatchToProps
-    )(Index as any)
+const IndexContainer = connect(
+    mapStateToProps,
+    mapDispatchToProps
+)(Index as any)
 
 export default IndexContainer;

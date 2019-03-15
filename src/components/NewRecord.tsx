@@ -44,6 +44,13 @@ class NewRecord extends React.Component<IndexProps, Partial<IndexState>> {
                             <img alt="" src="https://i.imgur.com/vFFI3ri.png"/>
                             <fieldset className="form-group">
                                 <legend><span>Input your tree expression</span></legend>
+                                {
+                                    this.props.indexStore.errorMessage ?
+                                        <div className="alert alert-danger" role="alert">
+                                            <strong>{this.props.indexStore.errorMessage} </strong></div>
+                                        :
+                                        <div/>
+                                }
                                 <div className="row">
                                     <div className="col-sm-12">
                                         <div className="form-group">
@@ -54,7 +61,6 @@ class NewRecord extends React.Component<IndexProps, Partial<IndexState>> {
                                                    type="text"/>
                                         </div>
                                     </div>
-
                                 </div>
 
                             </fieldset>
@@ -70,13 +76,7 @@ class NewRecord extends React.Component<IndexProps, Partial<IndexState>> {
                         </form>
                     </div>
                 </div>
-                {
-                    this.props.indexStore.errorMessage ?
-                        <div className="alert alert-danger" role="alert">
-                            <strong>{this.props.indexStore.errorMessage} </strong></div>
-                        :
-                        <div/>
-                }
+
             </div>
         )
     }

@@ -23811,6 +23811,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 function initState() {
     return {
         records: [],
+        isAuthed: false,
         errorMessage: null
     };
 }
@@ -23819,6 +23820,12 @@ function IndexReducer(state, action) {
     var records = null;
     switch (action.type) {
         case 'load_records':
+            return Object.assign({}, state, { records: action.payload });
+        case 'login':
+            debugger;
+            return Object.assign({}, state, { records: action.payload });
+        case 'register':
+            debugger;
             return Object.assign({}, state, { records: action.payload });
         case 'create_record':
             records = state.records.slice();
@@ -24565,7 +24572,45 @@ var constants_1 = __webpack_require__(102);
 var mapStateToProps = function (state) { return state; };
 var mapDispatchToProps = function (dispatch, ownProps) {
     var REST_API_END_POINT = constants_1.SERVER.API_END_POINT + "/api/v1/calculation_record";
+    var REGISTER_END_POINT = constants_1.SERVER.API_END_POINT + "/users";
+    var LOGIN_END_POINT = constants_1.SERVER.API_END_POINT + "/sessions";
     return {
+        register: function (payload) {
+            axios_1.default.post(REGISTER_END_POINT, { user: payload }).then(function (resp) {
+                dispatch({
+                    type: 'register',
+                    payload: resp.data
+                });
+            }).catch(function (e) {
+                dispatch({
+                    type: 'failed_to_create',
+                    payload: 'Unknown error.'
+                });
+            });
+        },
+        login: function (payload) {
+            axios_1.default.post(REST_API_END_POINT, { payload: payload }).then(function (resp) {
+                dispatch({
+                    type: 'create_record',
+                    payload: resp.data
+                });
+            }).catch(function (e) {
+                try {
+                    if (e.response && e.response.data && e.response.data.input[0]) {
+                        dispatch({
+                            type: 'failed_to_create',
+                            payload: e.response.data.input[0]
+                        });
+                    }
+                }
+                catch (e) {
+                    dispatch({
+                        type: 'failed_to_create',
+                        payload: 'Unknown error.'
+                    });
+                }
+            });
+        },
         create_record: function (payload) {
             axios_1.default.post(REST_API_END_POINT, { record: { input: payload } }).then(function (resp) {
                 dispatch({
@@ -24631,14 +24676,145 @@ var Records_1 = __webpack_require__(83);
 var Index = (function (_super) {
     __extends(Index, _super);
     function Index(props) {
-        return _super.call(this, props) || this;
+        var _this = _super.call(this, props) || this;
+        _this.state = {
+            showRegistrationForm: false,
+            email: '',
+            password: '',
+            confirm_password: '',
+            error: null
+        };
+        return _this;
     }
     Index.prototype.componentWillReceiveProps = function (nextProp) {
     };
+    Index.prototype.switchToRegistration = function () {
+        this.setState({ showRegistrationForm: !this.state.showRegistrationForm });
+    };
+    Index.prototype.handleEmail = function (e) {
+        this.setState({ email: e.target.value });
+    };
+    Index.prototype.handlePassword = function (e) {
+        if (e.target.value && e.target.value.length > 0 && this.state.confirm_password.length > 0) {
+            if (e.target.value != this.state.confirm_password) {
+                this.setState({ error: 'Passwords inconsistent' });
+            }
+            else {
+                this.setState({ error: null });
+            }
+        }
+        this.setState({ password: e.target.value });
+    };
+    Index.prototype.handleConfirmPassword = function (e) {
+        if (e.target.value && e.target.value.length > 0) {
+            if (e.target.value != this.state.password) {
+                this.setState({ error: 'Passwords inconsistent' });
+            }
+            else {
+                this.setState({ error: null });
+            }
+        }
+        this.setState({ confirm_password: e.target.value });
+    };
+    Index.prototype.register = function () {
+        if (this.state.password != this.state.confirm_password) {
+            this.setState({ error: 'Passwords inconsistent' });
+        }
+        else {
+            this.props.register({
+                email: this.state.email,
+                password: this.state.password
+            });
+        }
+    };
+    Index.prototype.login = function () {
+    };
+    Index.prototype.renderLoginForm = function () {
+        var _this = this;
+        return (React.createElement("div", { className: "all-wrapper menu-side with-pattern" },
+            React.createElement("div", { className: "auth-box-w" },
+                React.createElement("div", { className: "logo-w" },
+                    React.createElement("a", { href: "index-2.html" },
+                        React.createElement("img", { alt: true, src: "img/logo-big.png" }))),
+                this.state.error ?
+                    React.createElement("div", { className: "alert alert-danger", role: "alert" },
+                        React.createElement("strong", null,
+                            this.state.error,
+                            " "))
+                    :
+                        React.createElement("div", null),
+                React.createElement("h4", { className: "auth-header" }, "Login Form"),
+                React.createElement("form", { action: "#" },
+                    React.createElement("div", { className: "form-group" },
+                        React.createElement("label", { htmlFor: true }, "Username"),
+                        React.createElement("input", { className: "form-control", value: this.state.email, onChange: function (e) { return _this.handleEmail(e); }, placeholder: "Enter your username", type: "text" }),
+                        React.createElement("div", { className: "pre-icon os-icon os-icon-user-male-circle" })),
+                    React.createElement("div", { className: "form-group" },
+                        React.createElement("label", { htmlFor: true }, "Password"),
+                        React.createElement("input", { className: "form-control", value: this.state.password, onChange: function (e) { return _this.handlePassword(e); }, placeholder: "Enter your password", type: "password" }),
+                        React.createElement("div", { className: "pre-icon os-icon os-icon-fingerprint" })),
+                    React.createElement("div", { className: "buttons-w" },
+                        React.createElement("button", { className: "btn btn-primary" }, "Log me in"),
+                        React.createElement("button", { className: "btn btn-white", type: "button", onClick: function (e) {
+                                e.preventDefault();
+                                _this.switchToRegistration();
+                            } }, " Register"))))));
+    };
+    Index.prototype.renderRegistrationForm = function () {
+        var _this = this;
+        return (React.createElement("div", { className: "all-wrapper menu-side with-pattern" },
+            React.createElement("div", { className: "auth-box-w wider" },
+                React.createElement("div", { className: "logo-w" },
+                    React.createElement("a", { href: "index-2.html" },
+                        React.createElement("img", { alt: true, src: "img/logo-big.png" }))),
+                this.state.error ?
+                    React.createElement("div", { className: "alert alert-danger", role: "alert" },
+                        React.createElement("strong", null,
+                            this.state.error,
+                            " "))
+                    :
+                        React.createElement("div", null),
+                React.createElement("h4", { className: "auth-header" }, "Create new account"),
+                React.createElement("form", { action: "#" },
+                    React.createElement("div", { className: "form-group" },
+                        React.createElement("label", { htmlFor: true }, " Email address"),
+                        React.createElement("input", { className: "form-control", value: this.state.email, onChange: function (e) { return _this.handleEmail(e); }, placeholder: "Enter email", type: "email" }),
+                        React.createElement("div", { className: "pre-icon os-icon os-icon-email-2-at2" })),
+                    React.createElement("div", { className: "row" },
+                        React.createElement("div", { className: "col-sm-6" },
+                            React.createElement("div", { className: "form-group" },
+                                React.createElement("label", { htmlFor: true }, " Password"),
+                                React.createElement("input", { value: this.state.password, onChange: function (e) { return _this.handlePassword(e); }, className: "form-control", placeholder: "Password", type: "password" }),
+                                React.createElement("div", { className: "pre-icon os-icon os-icon-fingerprint" }))),
+                        React.createElement("div", { className: "col-sm-6" },
+                            React.createElement("div", { className: "form-group" },
+                                React.createElement("label", { htmlFor: true }, "Confirm Password"),
+                                React.createElement("input", { value: this.state.confirm_password, onChange: function (e) { return _this.handleConfirmPassword(e); }, className: "form-control", placeholder: "Password", type: "password" })))),
+                    React.createElement("div", { className: "buttons-w" },
+                        React.createElement("button", { className: "btn btn-primary", onClick: function (e) {
+                                e.preventDefault();
+                                _this.register(e);
+                            } }, "Register Now"))))));
+    };
+    Index.prototype.renderContent = function () {
+        return (React.createElement("div", { className: "content-i" },
+            React.createElement("div", { className: "content-box" },
+                React.createElement("div", { className: "row" },
+                    React.createElement(NewRecord_1.default, { create_record: this.props.create_record, indexStore: this.props.indexStore }),
+                    React.createElement(Records_1.default, { loadRecords: this.props.loadRecords, indexStore: this.props.indexStore })))));
+    };
     Index.prototype.render = function () {
-        return (React.createElement("div", { className: "row" },
-            React.createElement(NewRecord_1.default, { create_record: this.props.create_record, indexStore: this.props.indexStore }),
-            React.createElement(Records_1.default, { loadRecords: this.props.loadRecords, indexStore: this.props.indexStore })));
+        if (this.props.indexStore.isAuthed == false) {
+            if (this.state.showRegistrationForm == false) {
+                return this.renderLoginForm();
+            }
+            else {
+                return this.renderRegistrationForm();
+            }
+        }
+        else {
+            return this.renderContent();
+        }
     };
     return Index;
 }(React.Component));

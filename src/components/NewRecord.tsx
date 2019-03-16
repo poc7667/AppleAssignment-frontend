@@ -12,7 +12,6 @@ class NewRecord extends React.Component<IndexProps, Partial<IndexState>> {
         this.state = {
             inputPayload: ''
         }
-
     }
 
     handleInputString(e) {
@@ -21,7 +20,6 @@ class NewRecord extends React.Component<IndexProps, Partial<IndexState>> {
     }
 
     componentWillReceiveProps(nextProp) {
-
     }
 
     render() {
@@ -34,7 +32,7 @@ class NewRecord extends React.Component<IndexProps, Partial<IndexState>> {
                     <div className="element-box">
                         <form>
                             <div className="form-desc">
-                                Tree expression example, e.g.: "1,2,3,#,#,4,5,#,#,#,#"
+                                Tree expression example, e.g.:  1,2,3,#,#,4,5,#,#,#,#
                                 <ul>
                                     <li>Each node separate by ,</li>
                                     <li># represents null node</li>
@@ -55,7 +53,8 @@ class NewRecord extends React.Component<IndexProps, Partial<IndexState>> {
                                     <div className="col-sm-12">
                                         <div className="form-group">
                                             <label htmlFor=""> Input tree expression</label>
-                                            <input className="form-control" placeholder="Expression"
+                                            <input className="form-control"
+                                                   placeholder="Example:  1,2,3,#,#,4,5,#,#,#,#"
                                                    value={this.state.inputPayload}
                                                    onChange={e => this.handleInputString(e)}
                                                    type="text"/>

@@ -23820,12 +23820,18 @@ function IndexReducer(state, action) {
     var records = null;
     switch (action.type) {
         case 'load_records':
-            return Object.assign({}, state, { records: action.payload });
+            return Object.assign({}, state, { records: action.payload, errorMessage: null });
+        case 'verified':
+            return Object.assign({}, state, { isAuthed: true, errorMessage: null });
+        case 'logout':
+            return Object.assign({}, state, { isAuthed: false, errorMessage: null });
         case 'login':
-            debugger;
-            return Object.assign({}, state, { records: action.payload });
+            return Object.assign({}, state, { records: action.payload, errorMessage: null });
+        case 'failed_to_login':
+            return Object.assign({}, state, { errorMessage: 'Incorrect email or password.' });
+        case 'failed_to_register':
+            return Object.assign({}, state, { errorMessage: 'This account has been taken.' });
         case 'register':
-            debugger;
             return Object.assign({}, state, { records: action.payload });
         case 'create_record':
             records = state.records.slice();
@@ -24567,6 +24573,7 @@ function verifySubselectors(mapStateToProps, mapDispatchToProps, mergeProps, dis
 Object.defineProperty(exports, "__esModule", { value: true });
 var react_redux_1 = __webpack_require__(25);
 var Index_1 = __webpack_require__(81);
+var Cookies = __webpack_require__(104);
 var axios_1 = __webpack_require__(84);
 var constants_1 = __webpack_require__(102);
 var mapStateToProps = function (state) { return state; };
@@ -24577,23 +24584,70 @@ var mapDispatchToProps = function (dispatch, ownProps) {
     return {
         register: function (payload) {
             axios_1.default.post(REGISTER_END_POINT, { user: payload }).then(function (resp) {
-                dispatch({
-                    type: 'register',
-                    payload: resp.data
-                });
+                if (resp.data.auth_token) {
+                    dispatch({
+                        type: 'verified'
+                    });
+                    Cookies.set('auth_token', resp.data.auth_token, { expires: 1 });
+                }
+                else {
+                    dispatch({
+                        type: 'failed_to_register'
+                    });
+                }
             }).catch(function (e) {
                 dispatch({
-                    type: 'failed_to_create',
-                    payload: 'Unknown error.'
+                    type: 'failed_to_register'
                 });
             });
         },
-        login: function (payload) {
-            axios_1.default.post(REST_API_END_POINT, { payload: payload }).then(function (resp) {
-                dispatch({
-                    type: 'create_record',
-                    payload: resp.data
+        loginUseToken: function () {
+            var auth_token = Cookies.get('auth_token');
+            if (auth_token) {
+                axios_1.default.post(LOGIN_END_POINT, { session: { id: auth_token } }).then(function (resp) {
+                    if (resp.status === 200 || resp.status === 201) {
+                        dispatch({
+                            type: 'verified'
+                        });
+                    }
+                }).catch(function (e) {
+                    try {
+                        if (e.response && e.response.data && e.response.data.input[0]) {
+                            dispatch({
+                                type: 'failed_to_create',
+                                payload: e.response.data.input[0]
+                            });
+                        }
+                    }
+                    catch (e) {
+                        dispatch({
+                            type: 'failed_to_create',
+                            payload: 'Unknown error.'
+                        });
+                    }
                 });
+            }
+        },
+        logout: function () {
+            Cookies.remove('auth_token');
+            dispatch({
+                type: 'logout'
+            });
+        },
+        login: function (payload) {
+            var sessions = payload;
+            axios_1.default.post(LOGIN_END_POINT, sessions).then(function (resp) {
+                if (resp.data.auth_token) {
+                    dispatch({
+                        type: 'verified'
+                    });
+                    Cookies.set('auth_token', resp.data.auth_token, { expires: 1 });
+                }
+                else {
+                    dispatch({
+                        type: 'failed_to_login'
+                    });
+                }
             }).catch(function (e) {
                 try {
                     if (e.response && e.response.data && e.response.data.input[0]) {
@@ -24684,9 +24738,15 @@ var Index = (function (_super) {
             confirm_password: '',
             error: null
         };
+        if (_this.props.indexStore.isAuthed == false) {
+            _this.props.loginUseToken();
+        }
         return _this;
     }
     Index.prototype.componentWillReceiveProps = function (nextProp) {
+        if (this.props.indexStore.isAuthed == true && nextProp.indexStore.isAuthed == false) {
+            this.setState({ showRegistrationForm: false });
+        }
     };
     Index.prototype.switchToRegistration = function () {
         this.setState({ showRegistrationForm: !this.state.showRegistrationForm });
@@ -24695,7 +24755,8 @@ var Index = (function (_super) {
         this.setState({ email: e.target.value });
     };
     Index.prototype.handlePassword = function (e) {
-        if (e.target.value && e.target.value.length > 0 && this.state.confirm_password.length > 0) {
+        if (e.target.value && e.target.value.length > 0 && this.state.confirm_password.length > 0
+            && this.state.showRegistrationForm == true) {
             if (e.target.value != this.state.confirm_password) {
                 this.setState({ error: 'Passwords inconsistent' });
             }
@@ -24728,6 +24789,26 @@ var Index = (function (_super) {
         }
     };
     Index.prototype.login = function () {
+        if (this.state.password.length && this.state.email.length) {
+            this.props.login({
+                email: this.state.email,
+                password: this.state.password
+            });
+        }
+        else {
+            this.setState({ error: 'Required information is missing.' });
+        }
+    };
+    Index.prototype.renderHeader = function () {
+        var _this = this;
+        return (React.createElement("div", { className: "top-bar color-scheme-transparent" },
+            React.createElement("div", { className: "top-menu-controls" },
+                React.createElement("a", { href: "#", onClick: function (e) {
+                        e.preventDefault();
+                        _this.props.logout();
+                    } },
+                    React.createElement("i", { className: "os-icon os-icon-signs-11" }),
+                    React.createElement("span", null, "Logout")))));
     };
     Index.prototype.renderLoginForm = function () {
         var _this = this;
@@ -24742,7 +24823,14 @@ var Index = (function (_super) {
                             this.state.error,
                             " "))
                     :
-                        React.createElement("div", null),
+                        null,
+                this.props.indexStore.errorMessage ?
+                    React.createElement("div", { className: "alert alert-danger", role: "alert" },
+                        React.createElement("strong", null,
+                            this.props.indexStore.errorMessage,
+                            " "))
+                    :
+                        null,
                 React.createElement("h4", { className: "auth-header" }, "Login Form"),
                 React.createElement("form", { action: "#" },
                     React.createElement("div", { className: "form-group" },
@@ -24754,7 +24842,9 @@ var Index = (function (_super) {
                         React.createElement("input", { className: "form-control", value: this.state.password, onChange: function (e) { return _this.handlePassword(e); }, placeholder: "Enter your password", type: "password" }),
                         React.createElement("div", { className: "pre-icon os-icon os-icon-fingerprint" })),
                     React.createElement("div", { className: "buttons-w" },
-                        React.createElement("button", { className: "btn btn-primary" }, "Log me in"),
+                        React.createElement("button", { className: "btn btn-primary", onClick: function (e) {
+                                _this.login();
+                            } }, "Log in"),
                         React.createElement("button", { className: "btn btn-white", type: "button", onClick: function (e) {
                                 e.preventDefault();
                                 _this.switchToRegistration();
@@ -24773,7 +24863,14 @@ var Index = (function (_super) {
                             this.state.error,
                             " "))
                     :
-                        React.createElement("div", null),
+                        null,
+                this.props.indexStore.errorMessage ?
+                    React.createElement("div", { className: "alert alert-danger", role: "alert" },
+                        React.createElement("strong", null,
+                            this.props.indexStore.errorMessage,
+                            " "))
+                    :
+                        null,
                 React.createElement("h4", { className: "auth-header" }, "Create new account"),
                 React.createElement("form", { action: "#" },
                     React.createElement("div", { className: "form-group" },
@@ -24793,15 +24890,22 @@ var Index = (function (_super) {
                     React.createElement("div", { className: "buttons-w" },
                         React.createElement("button", { className: "btn btn-primary", onClick: function (e) {
                                 e.preventDefault();
-                                _this.register(e);
-                            } }, "Register Now"))))));
+                                _this.register();
+                            } }, "Register Now"),
+                        React.createElement("button", { className: "btn btn-white", onClick: function (e) {
+                                e.preventDefault();
+                                _this.setState({ showRegistrationForm: false });
+                            } }, "Cancel"))))));
     };
     Index.prototype.renderContent = function () {
-        return (React.createElement("div", { className: "content-i" },
-            React.createElement("div", { className: "content-box" },
-                React.createElement("div", { className: "row" },
-                    React.createElement(NewRecord_1.default, { create_record: this.props.create_record, indexStore: this.props.indexStore }),
-                    React.createElement(Records_1.default, { loadRecords: this.props.loadRecords, indexStore: this.props.indexStore })))));
+        return ([
+            this.renderHeader(),
+            React.createElement("div", { className: "content-i" },
+                React.createElement("div", { className: "content-box" },
+                    React.createElement("div", { className: "row" },
+                        React.createElement(NewRecord_1.default, { create_record: this.props.create_record, indexStore: this.props.indexStore }),
+                        React.createElement(Records_1.default, { loadRecords: this.props.loadRecords, indexStore: this.props.indexStore }))))
+        ]);
     };
     Index.prototype.render = function () {
         if (this.props.indexStore.isAuthed == false) {
@@ -24862,7 +24966,7 @@ var NewRecord = (function (_super) {
                 React.createElement("div", { className: "element-box" },
                     React.createElement("form", null,
                         React.createElement("div", { className: "form-desc" },
-                            "Tree expression example, e.g.: \"1,2,3,#,#,4,5,#,#,#,#\"",
+                            "Tree expression example, e.g.:  1,2,3,#,#,4,5,#,#,#,#",
                             React.createElement("ul", null,
                                 React.createElement("li", null, "Each node separate by ,"),
                                 React.createElement("li", null, "# represents null node"))),
@@ -24881,7 +24985,7 @@ var NewRecord = (function (_super) {
                                 React.createElement("div", { className: "col-sm-12" },
                                     React.createElement("div", { className: "form-group" },
                                         React.createElement("label", { htmlFor: "" }, " Input tree expression"),
-                                        React.createElement("input", { className: "form-control", placeholder: "Expression", value: this.state.inputPayload, onChange: function (e) { return _this.handleInputString(e); }, type: "text" }))))),
+                                        React.createElement("input", { className: "form-control", placeholder: "Example:  1,2,3,#,#,4,5,#,#,#,#", value: this.state.inputPayload, onChange: function (e) { return _this.handleInputString(e); }, type: "text" }))))),
                         React.createElement("div", { className: "form-buttons-w" },
                             React.createElement("button", { className: "btn btn-primary", onClick: function (e) {
                                     e.preventDefault();
@@ -25804,7 +25908,10 @@ module.exports = function spread(callback) {
 
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.SERVER = {
-    API_END_POINT: 'https://246c13b3.ngrok.io'
+    API_END_POINT: 'https://9d399f90.ngrok.io'
+};
+exports.MSG = {
+    FAILED_TO_CREATE_USER: 'Failed to create'
 };
 
 
@@ -25928,6 +26035,181 @@ function createLogger() {
 
 exports["default"] = createLogger;
 module.exports = exports["default"];
+
+/***/ }),
+/* 104 */
+/***/ (function(module, exports, __webpack_require__) {
+
+var __WEBPACK_AMD_DEFINE_FACTORY__, __WEBPACK_AMD_DEFINE_RESULT__;/*!
+ * JavaScript Cookie v2.2.0
+ * https://github.com/js-cookie/js-cookie
+ *
+ * Copyright 2006, 2015 Klaus Hartl & Fagner Brack
+ * Released under the MIT license
+ */
+;(function (factory) {
+	var registeredInModuleLoader = false;
+	if (true) {
+		!(__WEBPACK_AMD_DEFINE_FACTORY__ = (factory),
+				__WEBPACK_AMD_DEFINE_RESULT__ = (typeof __WEBPACK_AMD_DEFINE_FACTORY__ === 'function' ?
+				(__WEBPACK_AMD_DEFINE_FACTORY__.call(exports, __webpack_require__, exports, module)) :
+				__WEBPACK_AMD_DEFINE_FACTORY__),
+				__WEBPACK_AMD_DEFINE_RESULT__ !== undefined && (module.exports = __WEBPACK_AMD_DEFINE_RESULT__));
+		registeredInModuleLoader = true;
+	}
+	if (true) {
+		module.exports = factory();
+		registeredInModuleLoader = true;
+	}
+	if (!registeredInModuleLoader) {
+		var OldCookies = window.Cookies;
+		var api = window.Cookies = factory();
+		api.noConflict = function () {
+			window.Cookies = OldCookies;
+			return api;
+		};
+	}
+}(function () {
+	function extend () {
+		var i = 0;
+		var result = {};
+		for (; i < arguments.length; i++) {
+			var attributes = arguments[ i ];
+			for (var key in attributes) {
+				result[key] = attributes[key];
+			}
+		}
+		return result;
+	}
+
+	function init (converter) {
+		function api (key, value, attributes) {
+			var result;
+			if (typeof document === 'undefined') {
+				return;
+			}
+
+			// Write
+
+			if (arguments.length > 1) {
+				attributes = extend({
+					path: '/'
+				}, api.defaults, attributes);
+
+				if (typeof attributes.expires === 'number') {
+					var expires = new Date();
+					expires.setMilliseconds(expires.getMilliseconds() + attributes.expires * 864e+5);
+					attributes.expires = expires;
+				}
+
+				// We're using "expires" because "max-age" is not supported by IE
+				attributes.expires = attributes.expires ? attributes.expires.toUTCString() : '';
+
+				try {
+					result = JSON.stringify(value);
+					if (/^[\{\[]/.test(result)) {
+						value = result;
+					}
+				} catch (e) {}
+
+				if (!converter.write) {
+					value = encodeURIComponent(String(value))
+						.replace(/%(23|24|26|2B|3A|3C|3E|3D|2F|3F|40|5B|5D|5E|60|7B|7D|7C)/g, decodeURIComponent);
+				} else {
+					value = converter.write(value, key);
+				}
+
+				key = encodeURIComponent(String(key));
+				key = key.replace(/%(23|24|26|2B|5E|60|7C)/g, decodeURIComponent);
+				key = key.replace(/[\(\)]/g, escape);
+
+				var stringifiedAttributes = '';
+
+				for (var attributeName in attributes) {
+					if (!attributes[attributeName]) {
+						continue;
+					}
+					stringifiedAttributes += '; ' + attributeName;
+					if (attributes[attributeName] === true) {
+						continue;
+					}
+					stringifiedAttributes += '=' + attributes[attributeName];
+				}
+				return (document.cookie = key + '=' + value + stringifiedAttributes);
+			}
+
+			// Read
+
+			if (!key) {
+				result = {};
+			}
+
+			// To prevent the for loop in the first place assign an empty array
+			// in case there are no cookies at all. Also prevents odd result when
+			// calling "get()"
+			var cookies = document.cookie ? document.cookie.split('; ') : [];
+			var rdecode = /(%[0-9A-Z]{2})+/g;
+			var i = 0;
+
+			for (; i < cookies.length; i++) {
+				var parts = cookies[i].split('=');
+				var cookie = parts.slice(1).join('=');
+
+				if (!this.json && cookie.charAt(0) === '"') {
+					cookie = cookie.slice(1, -1);
+				}
+
+				try {
+					var name = parts[0].replace(rdecode, decodeURIComponent);
+					cookie = converter.read ?
+						converter.read(cookie, name) : converter(cookie, name) ||
+						cookie.replace(rdecode, decodeURIComponent);
+
+					if (this.json) {
+						try {
+							cookie = JSON.parse(cookie);
+						} catch (e) {}
+					}
+
+					if (key === name) {
+						result = cookie;
+						break;
+					}
+
+					if (!key) {
+						result[name] = cookie;
+					}
+				} catch (e) {}
+			}
+
+			return result;
+		}
+
+		api.set = api;
+		api.get = function (key) {
+			return api.call(api, key);
+		};
+		api.getJSON = function () {
+			return api.apply({
+				json: true
+			}, [].slice.call(arguments));
+		};
+		api.defaults = {};
+
+		api.remove = function (key, attributes) {
+			api(key, '', extend(attributes, {
+				expires: -1
+			}));
+		};
+
+		api.withConverter = init;
+
+		return api;
+	}
+
+	return init(function () {});
+}));
+
 
 /***/ })
 /******/ ]);

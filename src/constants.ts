@@ -1,5 +1,5 @@
 export const SERVER ={
-    API_END_POINT: 'https://9d399f90.ngrok.io'
+    API_END_POINT: 'https://45.79.105.23:3000/'
 }
 
 export const MSG = {
